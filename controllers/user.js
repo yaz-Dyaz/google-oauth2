@@ -2,10 +2,10 @@ const { User } = require('../db/models');
 const bcryp = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET_KEY } = process.env;
-const oauth2 = require('../utils/oauth2')
+const oauth2 = require('../utils/oauth2');
 
 module.exports = {
-    register: async (req, res, next) => {
+    register: async (req, res) => {
         try {
             const { name, email, password } = req.body;
 
@@ -21,7 +21,7 @@ module.exports = {
             const hashPassword = await bcryp.hash(password, 10);
 
             const user = await User.create({
-                name, email, password: hashPassword
+                name, email, password: hashPassword, user_type: 'basic'
             });
 
             return res.status(201).json({
@@ -33,12 +33,12 @@ module.exports = {
                     email: user.email
                 }
             });
-        } catch (err) {
-            next(err);
+        } catch (error) {
+            throw error;
         }
     },
 
-    login: async (req, res, next) => {
+    login: async (req, res) => {
         try {
             const { email, password } = req.body;
 
@@ -47,6 +47,15 @@ module.exports = {
                 return res.status(400).json({
                     status: false,
                     message: 'credential is not valid!',
+                    data: null
+                });
+            }
+
+
+            if (user.user_type == 'google' && !user.password) {
+                return res.status(400).json({
+                    status: false,
+                    message: 'your accont is registered with google oauth, you need to login with google oauth2!',
                     data: null
                 });
             }
@@ -75,33 +84,24 @@ module.exports = {
                 }
             });
 
-        } catch (err) {
-            next(err);
+        } catch (error) {
+            throw error;
         }
     },
 
-    whoami: async (req, res, next) => {
+    whoami: async (req, res) => {
         try {
             return res.status(200).json({
                 status: true,
-                message: 'success!',
-                data: {
-                    user: req.user
-                }
+                message: 'fetch user success!',
+                data: req.user
             });
-        } catch (err) {
-            next(err);
+        } catch (error) {
+            throw error;
         }
     },
 
     googleOauth2: async (req, res) => {
-        // user hit endpoint login oauth2 (http://localhost:3000/auth/oauth)
-        // generate url google login
-        // redirect url ke login google
-        // google redirect ke halaman login dengan query code (http://localhost:3000/auth/oauth?code=...)
-        // get data user
-        // register user
-        // return token
         const { code } = req.query;
         if (!code) {
             const googleLoginUrl = oauth2.generateAuthUrl();
@@ -109,9 +109,30 @@ module.exports = {
         }
 
         await oauth2.setCreadentials(code);
-
         const { data } = await oauth2.getUserData();
 
-        return res.json(data);
+        let user = await User.findOne({ where: { email: data.email } });
+        if (!user) {
+            user = await User.create({
+                name: data.name,
+                email: data.email,
+                user_type: 'google'
+            });
+        }
+
+        const payload = {
+            id: user.id,
+            name: user.name,
+            email: user.email
+        };
+
+        const token = await jwt.sign(payload, JWT_SECRET_KEY);
+        return res.status(200).json({
+            status: true,
+            message: 'login success!',
+            data: {
+                token: token
+            }
+        });
     }
 };
