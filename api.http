@@ -1,9 +1,8 @@
-POST http://localhost:3000/register
+POST http://localhost:3000/auth/oauth
 Content-Type: application/json
 
 {
-    "name":"sabrina",
-    "email":"sabrina@mail.com",
+    "name":"dyaz.amrullah@gmail.com",
     "password":"password123"
 }
 

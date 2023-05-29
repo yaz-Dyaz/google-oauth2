@@ -1,3 +1,4 @@
+// untuk mereset data user
 const {User} = require('../db/models');
 
 module.exports = {

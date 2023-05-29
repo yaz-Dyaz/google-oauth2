@@ -5,13 +5,10 @@ const morgan = require('morgan');
 const router = require('./routes');
 const cors = require('cors');
 
-const {
-    HTTP_PORT = 3000
-} = process.env;
-
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
+app.use('/images', express.static('public/images')); // agar bisa diakses link media nya
 
 app.use(router);
 
